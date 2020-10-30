@@ -3,4 +3,4 @@
 *.new_base
 PVM/ESCLA
 PVM/CodeSequentiel
-PVM/stats/log*.log
+*.log
