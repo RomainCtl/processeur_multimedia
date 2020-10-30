@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "pvm3.h"
+#include <time.h>
 
 #define MAX_CHAINE 100
 #define MAX_HOSTS 100
@@ -44,6 +45,12 @@
 
 #define ESCLAVE_ENVOI	MAITRE_RECOIT
 #define ESCLAVE_RECOIT 	MAITRE_ENVOI
+
+// Clock
+#define initClock    clock_t start_t, end_t, total_t;
+#define beginClock start_t = clock()
+#define endClock end_t = clock()
+#define tpsClock (double)(end_t - start_t) / CLOCKS_PER_SEC
 
 int main(argc, argv) int argc; char *argv[]; {
 	/*========================================================================*/
@@ -95,6 +102,9 @@ int main(argc, argv) int argc; char *argv[]; {
 	int iddaemon;
 
 	int masterHostId;
+	int totalNbTache = 0;
+
+	initClock; //
 	
 	/*========================================================================*/
 	/* Recuperation des parametres						*/
@@ -202,8 +212,10 @@ int main(argc, argv) int argc; char *argv[]; {
 	
 	
 	/*========================================================================*/
-	/* Calcul de cahque nouvelle valeur de pixel							*/
+	/* Calcul de chaque nouvelle valeur de pixel				  */
 	/*========================================================================*/
+
+	beginClock; // Begin of clock
 
 	hostp = calloc(1, sizeof(struct pvmhostinfo));
 	taskinfo = calloc(1, sizeof(struct pvmtaskinfo));
@@ -225,21 +237,25 @@ int main(argc, argv) int argc; char *argv[]; {
 	// Creation des taches !
 	info = pvm_config(&nhost, &narch, &hostp);
 	for (i=0 ; i < nhost ; i++) {
-		printf("\tNoeud %d : \n", i);
-		printf("\t\t hi_tid = %d \n",hostp[i].hi_tid);
-		printf("\t\t hi_name = %s \n",hostp[i].hi_name);
-		printf("\t\t hi_arch = %s \n",hostp[i].hi_arch);
-		printf("\t\t hi_speed = %d \n",hostp[i].hi_speed);
+		if (hostp[i].hi_tid != masterHostId) { // do not send to master (to check evol when we add node)
+			printf("\tNoeud %d : \n", i);
+			printf("\t\t hi_tid = %d \n",hostp[i].hi_tid);
+			printf("\t\t hi_name = %s \n",hostp[i].hi_name);
+			printf("\t\t hi_arch = %s \n",hostp[i].hi_arch);
+			printf("\t\t hi_speed = %d \n",hostp[i].hi_speed);
 
-		param[0] = calloc(1, MAX_CHAINE);
-		param[1] = calloc(1, MAX_CHAINE);
-		sprintf(param[0],"%d",i);
-		sprintf(param[1],"%s",hostp[i].hi_name);
-		param[2] = NULL;
+			param[0] = calloc(1, MAX_CHAINE);
+			param[1] = calloc(1, MAX_CHAINE);
+			sprintf(param[0],"%d",i);
+			sprintf(param[1],"%s",hostp[i].hi_name);
+			param[2] = NULL;
 
-		nbtaches = pvm_spawn(CheminTache, &param[0], PvmTaskHost, hostp[i].hi_name,1, &numtaches[i]);
+			nbtaches = pvm_spawn(CheminTache, &param[0], PvmTaskHost, hostp[i].hi_name,1, &numtaches[i]);
 
-		printf("\tLance une tache sur %s : Tache %d %s %s (%d) \n", hostp[i].hi_name, numtaches[i], param[0], param[1], nbtaches);
+			printf("\tLance une tache sur %s : Tache %d %s %s (%d)\n", hostp[i].hi_name, numtaches[i], param[0], param[1], nbtaches);
+
+			totalNbTache++; // increment total number of task (currently one task per node, if more, we may change some code like 'second loop to send...' loop for example)
+		}
 	}
 
 	info = pvm_tasks(0, &nbtaches, &taskinfo);
@@ -261,39 +277,41 @@ int main(argc, argv) int argc; char *argv[]; {
 
 	// second loop to send ligne to each sub-task
 	for (i=0 ; i < nhost ; i++) {
-		msgtype = MAITRE_ENVOI;
-		pvm_initsend(PvmDataDefault);
-		pvm_pkint(&mytid, 1, 1);
-		pvm_pkint(&LE_MIN, 1, 1); // Envoi LE_MIN
-		pvm_pkfloat(&ETALEMENT, 1, 1); // Envoi de la valeur d'etalement
-		pvm_pkint(&x, 1, 1); // Envoi de la taille de la ligne
-		pvm_pkint(&NumLigne, 1, 1); // Envoi du num de la ligne
-		pvm_pkint(image[NumLigne], X, 1); // Envoi de la ligne
+		if (hostp[i].hi_tid != masterHostId) { // it is the master (do not sent data)
+			msgtype = MAITRE_ENVOI;
+			pvm_initsend(PvmDataDefault);
+			pvm_pkint(&mytid, 1, 1);
+			pvm_pkint(&LE_MIN, 1, 1); // Envoi LE_MIN
+			pvm_pkfloat(&ETALEMENT, 1, 1); // Envoi de la valeur d'etalement
+			pvm_pkint(&x, 1, 1); // Envoi de la taille de la ligne
+			pvm_pkint(&NumLigne, 1, 1); // Envoi du num de la ligne
+			pvm_pkint(image[NumLigne], X, 1); // Envoi de la ligne
 
-		pvm_send(numtaches[i], msgtype);
+			pvm_send(numtaches[i], msgtype);
 
-		printf("\tEnvoi de la ligne %d a la tache %d\n", NumLigne, numtaches[i]);
+			printf("\tEnvoi de la ligne %d a la tache %d\n", NumLigne, numtaches[i]);
 
-		NumLigne++;
+			NumLigne++;
+		}
 	}
 
 	// Reception des resultats et envoi des autres lignes
 	ReponsesRecues = 0;
 	i=0;
-	while (ReponsesRecues < Y) {
+	while (ReponsesRecues < Y+totalNbTache) {
 		//printf("Attente de reception\n");
 		msgtype = MAITRE_RECOIT;
 
 		pvm_recv(-1, msgtype);
 		pvm_upkint(&who, 1, 1);
 		pvm_upkint(&quelle_ligne, 1, 1);
+		ReponsesRecues++;
+		
 		if (quelle_ligne == -1) {
 			pvm_upkint(&n, 1, 1);
-			printf("\tLa tache %d a traiter %d lignes\n", who, n);
+			printf("La tache %d a traiter %d lignes\n", who, n);
 		} else {
 			pvm_upkint(resultat[quelle_ligne], X, 1);
-
-			ReponsesRecues++;
 
 			msgtype = MAITRE_ENVOI;
 			pvm_initsend(PvmDataDefault);
@@ -307,17 +325,14 @@ int main(argc, argv) int argc; char *argv[]; {
 
 				pvm_send(who, msgtype);
 
-				printf("\tEnvoi de la ligne %d a la tache %d \n", NumLigne, numtaches[i]);
+				printf("\tEnvoi de la ligne %d a la tache %d \n", NumLigne, who);
 				NumLigne++;
 			}
 		}
 	}
 
-	/*for (i = 0 ; i < Y ; i++) {
-		for (j = 0 ; j < X ; j++) {
-			resultat[i][j] = ((image[i][j] - LE_MIN) * ETALEMENT);
-		}
-	}*/
+	endClock; // end of clock !
+	printf("Duration: %f sec\n", tpsClock);
 
 	pvm_exit();
 
