@@ -8,11 +8,10 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "pvm3.h"
 
 #define MAX_CHAINE 100
+
 #define MAX_HOSTS 100
-#define MAX_PARAM 10
 
 
 
@@ -39,13 +38,10 @@
 #define true 1
 #define boolean int
 
-#define MAITRE_ENVOI 	0
-#define MAITRE_RECOIT	5
-
-#define ESCLAVE_ENVOI	MAITRE_RECOIT
-#define ESCLAVE_RECOIT 	MAITRE_ENVOI
-
-int main(argc, argv) int argc; char *argv[]; {
+int main(argc, argv)
+int argc;
+char *argv[];
+{
 	/*========================================================================*/
 	/* Declaration de variables et allocation memoire */
 	/*========================================================================*/
@@ -86,15 +82,6 @@ int main(argc, argv) int argc; char *argv[]; {
 	
 	char *Chemin;
 	char *CheminTache;
-
-	struct pvmhostinfo *hostp;
-	struct pvmtaskinfo *taskinfo;
-	char *param[MAX_PARAM];
-	int numtaches[MAX_HOSTS];
-	int mytid, nhost, narch;
-	int iddaemon;
-
-	int masterHostId;
 	
 	/*========================================================================*/
 	/* Recuperation des parametres						*/
@@ -112,7 +99,7 @@ int main(argc, argv) int argc; char *argv[]; {
 	CALLOC(CheminTache, MAX_CHAINE, char);
 	Chemin = getenv("PWD");
 	printf("Repertoire de travail : %s \n\n",Chemin);
-	sprintf(CheminTache, "./ESCLA");
+	
 
 	/*========================================================================*/
 	/* Ouverture des fichiers						*/
@@ -204,122 +191,12 @@ int main(argc, argv) int argc; char *argv[]; {
 	/*========================================================================*/
 	/* Calcul de cahque nouvelle valeur de pixel							*/
 	/*========================================================================*/
-
-	hostp = calloc(1, sizeof(struct pvmhostinfo));
-	taskinfo = calloc(1, sizeof(struct pvmtaskinfo));
-
-	mytid = pvm_mytid();
-
-	// List les taches deja en cours
-	info = pvm_tasks(0, &nbtaches, &taskinfo);
-	for (i=0 ; i < nbtaches ; i++) {
-		if (taskinfo[i].ti_tid == mytid) {
-			printf("\t Tache %d : tourne sur le noeud (ti_host) : %d ; Commentaire TACHE PRINCIPALE \n", taskinfo[i].ti_tid, taskinfo[i].ti_host);
-			masterHostId = taskinfo[i].ti_host;
-		} else {
-			printf("\t Tache daemon %d : tourne sur le noeud (ti_host) : %d ;\n", taskinfo[i].ti_tid, taskinfo[i].ti_host);
-			iddaemon = taskinfo[i].ti_tid;
-		}
-	}
-
-	// Creation des taches !
-	info = pvm_config(&nhost, &narch, &hostp);
-	for (i=0 ; i < nhost ; i++) {
-		printf("\tNoeud %d : \n", i);
-		printf("\t\t hi_tid = %d \n",hostp[i].hi_tid);
-		printf("\t\t hi_name = %s \n",hostp[i].hi_name);
-		printf("\t\t hi_arch = %s \n",hostp[i].hi_arch);
-		printf("\t\t hi_speed = %d \n",hostp[i].hi_speed);
-
-		param[0] = calloc(1, MAX_CHAINE);
-		param[1] = calloc(1, MAX_CHAINE);
-		sprintf(param[0],"%d",i);
-		sprintf(param[1],"%s",hostp[i].hi_name);
-		param[2] = NULL;
-
-		nbtaches = pvm_spawn(CheminTache, &param[0], PvmTaskHost, hostp[i].hi_name,1, &numtaches[i]);
-
-		printf("\tLance une tache sur %s : Tache %d %s %s (%d) \n", hostp[i].hi_name, numtaches[i], param[0], param[1], nbtaches);
-	}
-
-	info = pvm_tasks(0, &nbtaches, &taskinfo);
-	printf("\nListe des taches de la Parallel Virtuelle Machine : %d \n", nbtaches);
-	for (i=0 ; i < nbtaches ; i++) {
-		if (taskinfo[i].ti_tid == iddaemon) {
-			printf("\t Tache %d : tache systeme pvmd (Daemon) \n",taskinfo[i].ti_tid);
-		} else if (taskinfo[i].ti_tid == mytid) {
-			printf("\t Tache %d : tourne sur le noeud (ti_host) : %d ; Commentaire TACHE PRINCIPALE \n",
-				taskinfo[i].ti_tid, taskinfo[i].ti_host);
-		} else {
-			printf("\t Tache %d : tourne sur le noeud (ti_host) : %d ;\n", 
-				taskinfo[i].ti_tid, taskinfo[i].ti_host);
-		}
-
-	}
-
-	NumLigne = 0;
-
-	// second loop to send ligne to each sub-task
-	for (i=0 ; i < nhost ; i++) {
-		msgtype = MAITRE_ENVOI;
-		pvm_initsend(PvmDataDefault);
-		pvm_pkint(&mytid, 1, 1);
-		pvm_pkint(&LE_MIN, 1, 1); // Envoi LE_MIN
-		pvm_pkfloat(&ETALEMENT, 1, 1); // Envoi de la valeur d'etalement
-		pvm_pkint(&x, 1, 1); // Envoi de la taille de la ligne
-		pvm_pkint(&NumLigne, 1, 1); // Envoi du num de la ligne
-		pvm_pkint(image[NumLigne], X, 1); // Envoi de la ligne
-
-		pvm_send(numtaches[i], msgtype);
-
-		printf("\tEnvoi de la ligne %d a la tache %d\n", NumLigne, numtaches[i]);
-
-		NumLigne++;
-	}
-
-	// Reception des resultats et envoi des autres lignes
-	ReponsesRecues = 0;
-	i=0;
-	while (ReponsesRecues < Y) {
-		//printf("Attente de reception\n");
-		msgtype = MAITRE_RECOIT;
-
-		pvm_recv(-1, msgtype);
-		pvm_upkint(&who, 1, 1);
-		pvm_upkint(&quelle_ligne, 1, 1);
-		if (quelle_ligne == -1) {
-			pvm_upkint(&n, 1, 1);
-			printf("\tLa tache %d a traiter %d lignes\n", who, n);
-		} else {
-			pvm_upkint(resultat[quelle_ligne], X, 1);
-
-			ReponsesRecues++;
-
-			msgtype = MAITRE_ENVOI;
-			pvm_initsend(PvmDataDefault);
-			if (NumLigne == Y) {
-				n=-1;
-				pvm_pkint(&n, 1, 1); // Envoi du message de fin
-				pvm_send(who, msgtype);
-			} else {
-				pvm_pkint(&NumLigne, 1, 1); // Envoi du num de la ligne
-				pvm_pkint(image[NumLigne], X, 1); // Envoi de la ligne
-
-				pvm_send(who, msgtype);
-
-				printf("\tEnvoi de la ligne %d a la tache %d \n", NumLigne, numtaches[i]);
-				NumLigne++;
-			}
-		}
-	}
-
-	/*for (i = 0 ; i < Y ; i++) {
+	
+	for (i = 0 ; i < Y ; i++) {
 		for (j = 0 ; j < X ; j++) {
 			resultat[i][j] = ((image[i][j] - LE_MIN) * ETALEMENT);
 		}
-	}*/
-
-	pvm_exit();
+	}
 
 	/*========================================================================*/
 	/* Sauvegarde de l'image dans le fichier resultat			*/
@@ -346,8 +223,8 @@ int main(argc, argv) int argc; char *argv[]; {
 	/*========================================================================*/
 	/* Fin du programme principal	*/
 	/*========================================================================*/
-
-	exit(0); 
+	
+	exit(0);
 	
 }
 
