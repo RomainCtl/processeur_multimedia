@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "pvm3.h"
+#include <time.h>
 
 
 #define MAX_CHAINE 100
@@ -16,9 +17,18 @@
 #define ESCLAVE_ENVOI	MAITRE_RECOIT
 #define ESCLAVE_RECOIT 	MAITRE_ENVOI
 
+// Clock
+#define initClock    clock_t start_t, end_t, total_t;
+#define beginClock start_t = clock()
+#define endClock end_t = clock()
+//#define tpsClock ((double)(end_t - start_t)) / CLOCKS_PER_SEC
+
 main(argc, argv) int argc; char *argv[]; {
 	FILE * fp;
 	fp = fopen ("/tmp/escla_log.txt", "a");
+
+	initClock; //
+	beginClock; // Begin of clock
 	
 	int i, j;
 	int param;
@@ -42,6 +52,7 @@ main(argc, argv) int argc; char *argv[]; {
 	int ligne_size;
 	int *ligne;
 	int *resultat;
+	unsigned long tpsClock;
 
 	int nb_ligne=0;
 
@@ -129,12 +140,17 @@ main(argc, argv) int argc; char *argv[]; {
 	fprintf(fp, "%d :: Fin, envoi du rapport\n", mytid);
 	fflush(fp);
 
+	endClock; // end of clock !
+
+	tpsClock = (end_t - start_t) *1000 / CLOCKS_PER_SEC;
+
 	// Fin
 	msgtype = ESCLAVE_ENVOI;
 	pvm_initsend(PvmDataDefault);
 	pvm_pkint(&mytid, 1, 1);
 	pvm_pkint(&ligne_num, 1, 1); // Pour dire que c'est le cptrendu
 	pvm_pkint(&nb_ligne, 1, 1);
+	pvm_pkulong(&tpsClock, 1, 1); // durer d'execution du noeud
 	pvm_send(maitre, msgtype);
 
 	fprintf(fp, "%d :: Fin de l'esclave\n", mytid);

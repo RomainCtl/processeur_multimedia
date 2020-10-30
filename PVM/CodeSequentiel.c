@@ -47,10 +47,10 @@
 #define ESCLAVE_RECOIT 	MAITRE_ENVOI
 
 // Clock
-#define initClock    clock_t start_t, end_t, total_t;
-#define beginClock start_t = clock()
-#define endClock end_t = clock()
-#define tpsClock (double)(end_t - start_t) / CLOCKS_PER_SEC
+#define initTimer struct timeval tv1, tv2; struct timezone tz
+#define startTimer gettimeofday(&tv1, &tz)
+#define stopTimer gettimeofday(&tv2, &tz)
+#define tpsCalcul ((tv2.tv_sec-tv1.tv_sec)*1000000L + (tv2.tv_usec-tv1.tv_usec)) / 1000
 
 int main(argc, argv) int argc; char *argv[]; {
 	/*========================================================================*/
@@ -103,8 +103,9 @@ int main(argc, argv) int argc; char *argv[]; {
 
 	int masterHostId;
 	int totalNbTache = 0;
+	unsigned long nodeDuration;
 
-	initClock; //
+	initTimer; //
 	
 	/*========================================================================*/
 	/* Recuperation des parametres						*/
@@ -215,7 +216,7 @@ int main(argc, argv) int argc; char *argv[]; {
 	/* Calcul de chaque nouvelle valeur de pixel				  */
 	/*========================================================================*/
 
-	beginClock; // Begin of clock
+	startTimer; //
 
 	hostp = calloc(1, sizeof(struct pvmhostinfo));
 	taskinfo = calloc(1, sizeof(struct pvmtaskinfo));
@@ -289,7 +290,7 @@ int main(argc, argv) int argc; char *argv[]; {
 
 			pvm_send(numtaches[i], msgtype);
 
-			printf("\tEnvoi de la ligne %d a la tache %d\n", NumLigne, numtaches[i]);
+			//printf("\tEnvoi de la ligne %d a la tache %d\n", NumLigne, numtaches[i]);
 
 			NumLigne++;
 		}
@@ -309,7 +310,8 @@ int main(argc, argv) int argc; char *argv[]; {
 		
 		if (quelle_ligne == -1) {
 			pvm_upkint(&n, 1, 1);
-			printf("La tache %d a traiter %d lignes\n", who, n);
+			pvm_upkulong(&nodeDuration, 1, 1);
+			printf("La tache %d a traiter %d lignes en %ldms\n", who, n, nodeDuration);
 		} else {
 			pvm_upkint(resultat[quelle_ligne], X, 1);
 
@@ -325,14 +327,14 @@ int main(argc, argv) int argc; char *argv[]; {
 
 				pvm_send(who, msgtype);
 
-				printf("\tEnvoi de la ligne %d a la tache %d \n", NumLigne, who);
+				//printf("\tEnvoi de la ligne %d a la tache %d \n", NumLigne, who);
 				NumLigne++;
 			}
 		}
 	}
 
-	endClock; // end of clock !
-	printf("Duration: %f sec\n", tpsClock);
+	stopTimer; //
+	printf("Duration: %ldms\n", tpsCalcul);
 
 	pvm_exit();
 
