@@ -77,13 +77,15 @@ class Images(object):
 	imgs = ["image1.pgm", "MontagneFoncee.pgm", "stavrovouni.pgm"]
 
 	@staticmethod
-	def create_stats(nb_nodes):
+	def create_stats(nb_nodes, vpn):
 		logger = create_logger()
 
 		# "number_nodes","image","time","node_1_lines_handled","node_1_duration",...
 		line = '%d,%s,%s' + (",%s,%s,%s,%s,%s"*nb_nodes)
 
-		stats = open("stats/%d_nodes.csv"%nb_nodes, "w+")
+		filename = "%d_nodes.csv"%nb_nodes
+		if vpn: filename = "vpn_%d_nodes.csv"%nb_nodes
+		stats = open("stats/"+filename, "w+")
 		writer = csv.writer(stats)
 
 		writer.writerow(("number_nodes,image,time(ms)"+ ''.join(",node_%d_lines_handled,node_%d_duration(ms),node_%d_name,node_%d_arch,node_%d_speed"%(i,i,i,i,i) for i in range(nb_nodes))).split(","))
@@ -135,6 +137,7 @@ class Images(object):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("nodes", help="number of PVM nodes", type=int)
+	parser.add_argument("--vpn", help="Start from VPN", action="store_true", default=False)
 	args = parser.parse_args()
-	Images.create_stats(args.nodes)
+	Images.create_stats(args.nodes, args.vpn)
 
