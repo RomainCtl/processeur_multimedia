@@ -1,6 +1,11 @@
 *~
 *.new
 *.new_base
+
 PVM/ESCLA
 PVM/CodeSequentiel
+
+CUDA/VecteurCPU
+CUDA/VecteurGPU
+
 *.log
