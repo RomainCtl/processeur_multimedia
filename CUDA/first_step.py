@@ -82,7 +82,7 @@ class Vectors(object):
         # "cpu_or_gpu","vector_size","calcul_time","total_time"
         line = '%s,%d,%d'
 
-        filename = "%d_nodes.csv"%nb_nodes
+        filename = "first_steps.csv"
         stats = open("stats/"+filename, "w+")
         writer = csv.writer(stats)
 
@@ -93,7 +93,7 @@ class Vectors(object):
 
     @staticmethod
     def create_stats_cpu(logger, writer):
-        for size in vectors:
+        for size in Vectors.vectors:
             command = CMD_CPU % size
             logger.info("%s\t"%command)
             outs, errs = call(command, logger=logger, is_stats=True, shell=True)
@@ -115,8 +115,8 @@ class Vectors(object):
 
     @staticmethod
     def create_stats_gpu(logger, writer):
-        for size in vectors:
-            command = CMD_CPU % size
+        for size in Vectors.vectors:
+            command = CMD_GPU % size
             logger.info("%s\t"%command)
             outs, errs = call(command, logger=logger, is_stats=True, shell=True)
 
@@ -140,5 +140,5 @@ class Vectors(object):
 
             writer.writerow(["gpu", size, duration_gpu, duration_cpu])
 
-if __main__ == "__name__":
+if __name__ == "__main__":
     Vectors.create_stats()
