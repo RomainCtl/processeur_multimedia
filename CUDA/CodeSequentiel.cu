@@ -51,7 +51,17 @@ int main(int argc, char *argv[]) {
     /* Declaration de variables et allocation memoire */
     /*========================================================================*/
 
-    int i, j, n;
+    if (argc < 2) {
+        printf("Usage: ./CodeSequentiel <path_to_image> [<blocksize>]\n");
+        exit(0);
+    }
+
+    long blocksize = 1; // default value
+    if (argc == 3) {
+        blocksize = atoi(argv[2]);
+    }
+
+    int i, n;
 
     int LE_MIN = MAX_VALEUR;
     int LE_MAX = MIN_VALEUR;
@@ -129,18 +139,6 @@ int main(int argc, char *argv[]) {
     /* Allocation memoire pour l'image source et l'image resultat                 */
     /*========================================================================*/
 
-/*    CALLOC(image, Y + 1, int*);
-    CALLOC(resultat, Y + 1, int*);
-    for (i = 0;i < Y;i++) {
-        CALLOC(image[i], X + 1, int);
-        CALLOC(resultat[i], X + 1, int);
-        for (j = 0;j < X;j++) {
-            image[i][j] = 0;
-            resultat[i][j] = 0;
-        }
-    }*/
-    printf("\t\t Initialisation de l'image [%d ; %d] : Ok \n", X, Y);
-
     TailleImage = X * Y;
 
     CALLOC(image, TailleImage, int);
@@ -153,13 +151,14 @@ int main(int argc, char *argv[]) {
     x = 0;
     y = 0;
 
+    printf("\t\t Initialisation de l'image [%d ; %d] : Ok \n", X, Y);
+
     /*========================================================================*/
     /* Lecture du fichier pour remplir l'image source                         */
     /*========================================================================*/
 
     while (!feof(Src)) {
         n = fscanf(Src, "%d", &P);
-        //image[y][x] = P;
         image[y+x] = P;
         LE_MIN = MIN(LE_MIN, P);
         LE_MAX = MAX(LE_MAX, P);
@@ -191,7 +190,7 @@ int main(int argc, char *argv[]) {
     /*========================================================================*/
 
     int tailleVecteur = TailleImage;
-    long blocksize = 1; // TODO can change from args
+    //long blocksize = 1; // TODO can change from args
 
     long size = sizeof(int)*tailleVecteur;
 
@@ -228,8 +227,6 @@ int main(int argc, char *argv[]) {
 
     cudaMemcpy(&resultat[0], &cudaRes[0], size, cudaMemcpyDeviceToHost);
 
-//    printf("%d %d %d\n", resultat[0], resultat[1], resultat[2]);
-
     cudaFree(cudaVec);
     cudaFree(cudaRes);
 
@@ -238,17 +235,13 @@ int main(int argc, char *argv[]) {
     /*========================================================================*/
 
     n = 0;
-    //for (i = 0; i < Y; i++) {
-    //    for (j = 0; j < X; j++) {
     for (i = 0; i < TailleImage ; i++) {
-
-            fprintf(Dst, "%3d ", resultat[i]);
-            n++;
-            if (n == NBPOINTSPARLIGNES) {
-                n = 0;
-                fprintf(Dst, "\n");
-            }
-    //    }
+        fprintf(Dst, "%3d ", resultat[i]);
+        n++;
+        if (n == NBPOINTSPARLIGNES) {
+            n = 0;
+            fprintf(Dst, "\n");
+        }
     }
 
     fprintf(Dst, "\n");
