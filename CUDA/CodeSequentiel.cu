@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 
 #define MAX_CHAINE 100
 
@@ -23,6 +23,9 @@
 
 #define NBPOINTSPARLIGNES 15
 
+#define MAX_DIM_GRID 65535
+#define MAX_DIM_BLOCK 1024
+
 #define false 0
 #define true 1
 #define boolean int
@@ -31,22 +34,19 @@
 #define initTimer struct timeval tv1, tv2; struct timezone tz
 #define startTimer gettimeofday(&tv1, &tz)
 #define stopTimer gettimeofday(&tv2, &tz)
-#define tpsCalcul ((tv2.tv_sec-tv1.tv_sec)*1000000L + (tv2.tv_usec-tv1.tv_usec)) / 1000
+#define tpsCalcul ((tv2.tv_sec-tv1.tv_sec)*1000000L + (tv2.tv_usec-tv1.tv_usec))
 
 
 /* KERNEL CUDA */
-__global__ void add_vec_scalaire_gpu(int **image, int **res, long N, int x, int le_min, float etalement) {
+__global__ void add_vec_scalaire_gpu(int *image, int *res, long N, int le_min, float etalement) {
     long i = (long)blockIdx.x * (long)blockDim.x + (long)threadIdx.x;
-    int j;
     if (i < N) {
-        for (j = 0 ; j < x ; j++) {
-            res[i][j] = ((image[i][j] - le_min) * etalement);
-        }
+        res[i] = ((image[i] - le_min) * etalement);
     }
 }
 
 
-int main(argc, argv) int argc; char* argv[]; {
+int main(int argc, char *argv[]) {
     /*========================================================================*/
     /* Declaration de variables et allocation memoire */
     /*========================================================================*/
@@ -58,13 +58,10 @@ int main(argc, argv) int argc; char* argv[]; {
 
     float ETALEMENT = 0.0;
 
-    int** image;
-    int** resultat;
+    int* image;
+    int* resultat;
     int X, Y, x, y;
     int TailleImage;
-
-    int NbResultats, quelle_ligne, lignes;
-    int* la_ligne;
 
     int P;
 
@@ -132,7 +129,7 @@ int main(argc, argv) int argc; char* argv[]; {
     /* Allocation memoire pour l'image source et l'image resultat                 */
     /*========================================================================*/
 
-    CALLOC(image, Y + 1, int*);
+/*    CALLOC(image, Y + 1, int*);
     CALLOC(resultat, Y + 1, int*);
     for (i = 0;i < Y;i++) {
         CALLOC(image[i], X + 1, int);
@@ -141,15 +138,20 @@ int main(argc, argv) int argc; char* argv[]; {
             image[i][j] = 0;
             resultat[i][j] = 0;
         }
-    }
+    }*/
     printf("\t\t Initialisation de l'image [%d ; %d] : Ok \n", X, Y);
 
     TailleImage = X * Y;
 
+    CALLOC(image, TailleImage, int);
+    CALLOC(resultat, TailleImage, int);
+    for (i = 0;i < TailleImage;i++) {
+        image[i] = 0;
+        resultat[i] = 0;
+    }
+
     x = 0;
     y = 0;
-
-    lignes = 0;
 
     /*========================================================================*/
     /* Lecture du fichier pour remplir l'image source                         */
@@ -157,7 +159,8 @@ int main(argc, argv) int argc; char* argv[]; {
 
     while (!feof(Src)) {
         n = fscanf(Src, "%d", &P);
-        image[y][x] = P;
+        //image[y][x] = P;
+        image[y+x] = P;
         LE_MIN = MIN(LE_MIN, P);
         LE_MAX = MAX(LE_MAX, P);
         x++;
@@ -187,19 +190,21 @@ int main(argc, argv) int argc; char* argv[]; {
     /* Calcul de chaque nouvelle valeur de pixel                              */
     /*========================================================================*/
 
-    int tailleVecteur = Y;
-    long blocksize = 1
+    int tailleVecteur = TailleImage;
+    long blocksize = 1; // TODO can change from args
 
-    int **cudaVec;
-    int **cudaRes;
+    long size = sizeof(int)*tailleVecteur;
+
+    int *cudaVec;
+    int *cudaRes;
 
     // Select cuda GPU device to use (if multiple device)
-    cudaSetDevice(0); // TODO make it as args ?
+    cudaSetDevice(0);
 
-    if (cudaMalloc((void **)&cudaVec, TailleImage) == cudaErrorMemoryAllocation) {
+    if (cudaMalloc((void **)&cudaVec, size) == cudaErrorMemoryAllocation) {
         printf("Allocation memoire qui pose probleme (cudaVec) \n");
     }
-    if (cudaMalloc((void **)&cudaRes, TailleImage)  == cudaErrorMemoryAllocation) {
+    if (cudaMalloc((void **)&cudaRes, size)  == cudaErrorMemoryAllocation) {
         printf("Allocation memoire qui pose probleme (cudaRes) \n");
     }
 
@@ -209,17 +214,21 @@ int main(argc, argv) int argc; char* argv[]; {
         dimGrid++;
     }
 
-    int res = cudaMemcpy(&cudaVec[0], image[0], TailleImage * sizeof(int), cudaMemcpyHostToDevice);
-
-    int res = cudaMemcpy(&cudaVec[0], &image[0], TailleImage * sizeof(int), cudaMemcpyHostToDevice);
+    int res = cudaMemcpy(&cudaVec[0], &image[0], size, cudaMemcpyHostToDevice);
 
     printf("Copy CPU -> GPU %d \n",res);
+    printf("dimBlock: %ld | dimGrid: %ld\n", dimBlock, dimGrid);
 
     startTimer;
-    add_vec_scalaire_gpu<<<dimGrid, dimBlock>>>(cudaVec, cudaRes, Y, X, LE_MIN, ETALEMENT);
+    add_vec_scalaire_gpu<<<dimGrid, dimBlock>>>(cudaVec, cudaRes, tailleVecteur, LE_MIN, ETALEMENT);
+    cudaDeviceSynchronize();
     stopTimer;
 
-    cudaMemcpy(&resultat[0], &cudaRes[0], TailleImage * sizeof(int), cudaMemcpyDeviceToHost);
+    printf("Duration %ld", tpsCalcul);
+
+    cudaMemcpy(&resultat[0], &cudaRes[0], size, cudaMemcpyDeviceToHost);
+
+//    printf("%d %d %d\n", resultat[0], resultat[1], resultat[2]);
 
     cudaFree(cudaVec);
     cudaFree(cudaRes);
@@ -229,16 +238,17 @@ int main(argc, argv) int argc; char* argv[]; {
     /*========================================================================*/
 
     n = 0;
-    for (i = 0; i < Y; i++) {
-        for (j = 0; j < X; j++) {
+    //for (i = 0; i < Y; i++) {
+    //    for (j = 0; j < X; j++) {
+    for (i = 0; i < TailleImage ; i++) {
 
-            fprintf(Dst, "%3d ", resultat[i][j]);
+            fprintf(Dst, "%3d ", resultat[i]);
             n++;
             if (n == NBPOINTSPARLIGNES) {
                 n = 0;
                 fprintf(Dst, "\n");
             }
-        }
+    //    }
     }
 
     fprintf(Dst, "\n");

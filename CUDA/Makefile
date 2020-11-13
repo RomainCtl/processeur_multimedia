@@ -1,9 +1,7 @@
-all :  VecteurCPU VecteurGPU
+all: CodeSequentiel
 
-VecteurCPU : Vecteur.c
-	gcc -o VecteurCPU Vecteur.c
+CodeSequentiel:	CodeSequentiel.cu
+	nvcc -o CodeSequentiel CodeSequentiel.cu
 
-VecteurGPU : Vecteur.cu
-	nvcc -o VecteurGPU Vecteur.cu
-clean :
-	rm VecteurCPU VecteurGPU
+clean:
+	rm CodeSequentiel

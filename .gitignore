@@ -4,8 +4,11 @@
 
 PVM/ESCLA
 PVM/CodeSequentiel
+PVM/CodeSequentiel_base
 
-CUDA/VecteurCPU
-CUDA/VecteurGPU
+CUDA/CodeSequentiel
+CUDA/first_step/VecteurCPU
+CUDA/first_step/VecteurGPU
+CUDA/conf/a.out
 
 *.log
