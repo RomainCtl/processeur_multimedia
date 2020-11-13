@@ -1,4 +1,4 @@
-#!/usr/bin/env ptyhon3
+#!/usr/bin/env python3
 from logging.handlers import RotatingFileHandler
 import logging
 import subprocess
