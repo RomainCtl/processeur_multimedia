@@ -88,11 +88,14 @@ class Images(object):
 
         writer.writerow(["blocksize","image","dimgrid","duration"])
 
+        j=0
         for img in Images.imgs:
-            for blocksize in range(BLOCKSIZE):
+            for blocksize in BLOCKSIZE:
                 for i in range(NB_LAUNCH):
+                    j += 1
+
                     command = CMD % (img, blocksize)
-                    logger.info("%d/%d\t"%(i+blocksize, NB_LAUNCH+BLOCKSIZE)+command)
+                    logger.info("%d/%d\t"%(j, NB_LAUNCH*len(BLOCKSIZE)*len(Images.imgs))+command)
                     outs, errs = call(command, logger=logger, is_stats=True, shell=True)
 
                     # write results of this test

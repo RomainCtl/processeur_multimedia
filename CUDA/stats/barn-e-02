@@ -1,0 +1,12 @@
+Device Number: 0
+  Device name: GeForce GTX 1080
+  Memory Clock Rate (KHz): 5005000
+  Global Memory (bytes): 8513978368
+  Memory Bus Width (bits): 256
+  Peak Memory Bandwidth (GB/s): 320.320000
+   Max Thread per block : 1024 
+   Multiproc count : 20 
+   Max Grid size : 2147483647 65535 65535 
+   Max thread dim : 1024 1024 64 
+   Registres per block : 65536 
+
