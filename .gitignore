@@ -11,4 +11,7 @@ CUDA/first_step/VecteurCPU
 CUDA/first_step/VecteurGPU
 CUDA/conf/a.out
 
+OpenMP/CodeSequentiel
+OpenMP/HelloWorld
+
 *.log
