@@ -11,8 +11,8 @@ import csv
 
 TIMEOUT = 180
 NB_LAUNCH = 20
-BLOCKSIZE = list(range(1,40))
-CMD = "./CodeSequentiel ../img/%s %d" # param1 is image name and param2 is blocksize
+NB_THREADS = list(range(1,17))
+CMD = "./CodeSequentiel ../img/%s %d" # param1 is image name and param2 is num_threads
 
 def kill_project(logger):
     cmd = "ps -a -o pid,cmd | grep -P './CodeSequentiel ../PVM/img/[A-z]+.pgm [0-9]+' | awk '{print  $1}' | xargs -I{} kill -9 {}"
@@ -86,37 +86,32 @@ class Images(object):
         stats = open("stats/"+filename, "w+")
         writer = csv.writer(stats)
 
-        writer.writerow(["blocksize","image","dimgrid","duration"])
+        writer.writerow(["num_threads","image","duration"])
 
         j=0
         for img in Images.imgs:
-            for blocksize in BLOCKSIZE:
+            for num_threads in NB_THREADS:
                 for i in range(NB_LAUNCH):
                     j += 1
 
-                    command = CMD % (img, blocksize)
-                    logger.info("%d/%d\t"%(j, NB_LAUNCH*len(BLOCKSIZE)*len(Images.imgs))+command)
+                    command = CMD % (img, num_threads)
+                    logger.info("%d/%d\t"%(j, NB_LAUNCH*len(NB_THREADS)*len(Images.imgs))+command)
                     outs, errs = call(command, logger=logger, is_stats=True, shell=True)
 
                     # write results of this test
                     res = iter((outs + errs).decode().split("\n"))
 
-                    dimgrid = ""
                     duration = 0
 
                     # parse output
                     while res.__length_hint__() > 0:
                         c_line = next(res)
 
-                        grid= re.match(r"dimBlock: [0-9]+ \| dimGrid: ([0-9]+)", c_line)
-                        if grid is not None:
-                            dimgrid = grid.group(1)
-
                         dur = re.match(r"Duration ([0-9]+)", c_line)
                         if dur is not None:
                             duration = dur.group(1)
 
-                    writer.writerow([blocksize, img, dimgrid, duration])
+                    writer.writerow([num_threads, img, duration])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
