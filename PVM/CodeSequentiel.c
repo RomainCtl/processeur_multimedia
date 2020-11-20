@@ -50,7 +50,7 @@
 #define initTimer struct timeval tv1, tv2; struct timezone tz
 #define startTimer gettimeofday(&tv1, &tz)
 #define stopTimer gettimeofday(&tv2, &tz)
-#define tpsCalcul ((tv2.tv_sec-tv1.tv_sec)*1000000L + (tv2.tv_usec-tv1.tv_usec)) / 1000
+#define tpsCalcul ((tv2.tv_sec-tv1.tv_sec)*1000000L + (tv2.tv_usec-tv1.tv_usec))
 
 int main(argc, argv) int argc; char* argv[]; {
 	/*========================================================================*/

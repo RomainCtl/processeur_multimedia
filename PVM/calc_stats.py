@@ -11,7 +11,7 @@ import csv
 
 TIMEOUT = 180
 NB_LAUNCH = 100
-CMD = "./CodeSequentiel img/%s" # %s is image name
+CMD = "./CodeSequentiel ../img/%s" # %s is image name
 
 def kill_project(logger):
 	cmd = "ps -a -o pid,cmd | grep -P './CodeSequentiel img/[A-z]+.pgm' | awk '{print  $1}' | xargs -I{} kill -9 {}"

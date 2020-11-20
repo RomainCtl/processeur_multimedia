@@ -2,9 +2,10 @@
 *.new
 *.new_base
 
+base/CodeSequentiel
+
 PVM/ESCLA
 PVM/CodeSequentiel
-PVM/CodeSequentiel_base
 
 CUDA/CodeSequentiel
 CUDA/first_step/VecteurCPU
