@@ -10,7 +10,7 @@ import time
 import csv
 
 TIMEOUT = 180
-NB_LAUNCH = 100
+NB_LAUNCH = 20
 CMD = "./CodeSequentiel ../img/%s" # %s is image name
 
 def kill_project(logger):
@@ -77,14 +77,13 @@ class Images(object):
 	imgs = ["image1.pgm", "MontagneFoncee.pgm", "stavrovouni.pgm"]
 
 	@staticmethod
-	def create_stats(nb_nodes, vpn):
+	def create_stats(nb_nodes):
 		logger = create_logger()
 
 		# "number_nodes","image","time","node_1_lines_handled","node_1_duration",...
 		line = '%d,%s,%s' + (",%s,%s,%s,%s,%s"*nb_nodes)
 
-		filename = "%d_nodes.csv"%nb_nodes
-		if vpn: filename = "vpn_%d_nodes.csv"%nb_nodes
+		filename = "2_%d_nodes.csv"%nb_nodes
 		stats = open("stats/"+filename, "w+")
 		writer = csv.writer(stats)
 
@@ -93,7 +92,7 @@ class Images(object):
 		for img in Images.imgs:
 			for i in range(NB_LAUNCH):
 				command = CMD % img
-				logger.info("%d/%d\t"%(i, NB_LAUNCH)+command)
+				logger.info("%d/%d\t"%(i, NB_LAUNCH*len(Images.imgs))+command)
 				outs, errs = call(command, logger=logger, is_stats=True, shell=True)
 
 				# write results of this test
@@ -137,7 +136,6 @@ class Images(object):
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
 	parser.add_argument("nodes", help="number of PVM nodes", type=int)
-	parser.add_argument("--vpn", help="Start from VPN", action="store_true", default=False)
 	args = parser.parse_args()
-	Images.create_stats(args.nodes, args.vpn)
+	Images.create_stats(args.nodes)
 

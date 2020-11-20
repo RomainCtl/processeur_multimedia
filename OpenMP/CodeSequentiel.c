@@ -50,15 +50,15 @@ int main(int argc, char *argv[]) {
         num_threads = atoi(argv[2]);
     }
 
-    int i, n;
+    int i, j, n;
 
     int LE_MIN = MAX_VALEUR;
     int LE_MAX = MIN_VALEUR;
 
     float ETALEMENT = 0.0;
 
-    int* image;
-    int* resultat;
+    int** image;
+    int** resultat;
     int X, Y, x, y;
     int TailleImage;
 
@@ -130,11 +130,15 @@ int main(int argc, char *argv[]) {
 
     TailleImage = X * Y;
 
-    CALLOC(image, TailleImage, int);
-    CALLOC(resultat, TailleImage, int);
-    for (i = 0;i < TailleImage;i++) {
-        image[i] = 0;
-        resultat[i] = 0;
+    CALLOC(image, Y+1, int*); //TailleImage, int);
+    CALLOC(resultat, Y+1, int*); //TailleImage, int);
+    for (i = 0;i < Y;i++) {
+        CALLOC(image[i], X+1, int);
+        CALLOC(resultat[i], X+1, int);
+        for (j=0; j < X ; j++) {
+            image[i][j] = 0;
+            resultat[i][j] = 0;
+        }
     }
 
     x = 0;
@@ -148,7 +152,7 @@ int main(int argc, char *argv[]) {
 
     while (!feof(Src)) {
         n = fscanf(Src, "%d", &P);
-        image[y+x] = P;
+        image[y][x] = P;
         LE_MIN = MIN(LE_MIN, P);
         LE_MAX = MAX(LE_MAX, P);
         x++;
@@ -184,8 +188,11 @@ int main(int argc, char *argv[]) {
 
     beginClock;
     #pragma omp parallel for private(i) shared(resultat, image)
-    for (i = 0 ; i < TailleImage ; i++) {
-        resultat[i] = ((image[i] - LE_MIN) * ETALEMENT);
+    for (i = 0 ; i < Y ; i++) {
+        #pragma omp parallel for
+        for (j = 0 ; j<X ; j++ ) {
+            resultat[i][j] = ((image[i][j] - LE_MIN) * ETALEMENT);
+        }
     }
     endClock;
 
@@ -197,12 +204,14 @@ int main(int argc, char *argv[]) {
     /*========================================================================*/
 
     n = 0;
-    for (i = 0; i < TailleImage ; i++) {
-        fprintf(Dst, "%3d ", resultat[i]);
+    for (i = 0; i < Y ; i++) {
+        for (j = 0; j < X ; j++) {
+        fprintf(Dst, "%3d ", resultat[i][j]);
         n++;
         if (n == NBPOINTSPARLIGNES) {
             n = 0;
             fprintf(Dst, "\n");
+        }
         }
     }
 
