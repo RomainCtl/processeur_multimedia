@@ -1,7 +1,7 @@
 #include <omp.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 
 #define MAX_CHAINE 100
 
@@ -29,13 +29,13 @@
 #define boolean int
 
 // Clock
-#define initClock    clock_t start_t, end_t, total_t;
-#define beginClock start_t = clock()
-#define endClock end_t = clock()
-#define tpsClock (double)(end_t - start_t) / CLOCKS_PER_SEC
+#define initTimer struct timeval tv1, tv2; struct timezone tz
+#define startTimer gettimeofday(&tv1, &tz)
+#define stopTimer gettimeofday(&tv2, &tz)
+#define tpsCalcul ((tv2.tv_sec-tv1.tv_sec)*1000000L + (tv2.tv_usec-tv1.tv_usec))
 
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     /*========================================================================*/
     /* Declaration de variables et allocation memoire */
     /*========================================================================*/
@@ -50,15 +50,15 @@ int main(int argc, char *argv[]) {
         num_threads = atoi(argv[2]);
     }
 
-    int i, j, n;
+    int i, n;
 
     int LE_MIN = MAX_VALEUR;
     int LE_MAX = MIN_VALEUR;
 
     float ETALEMENT = 0.0;
 
-    int** image;
-    int** resultat;
+    int* resultat;
+    int* image;
     int X, Y, x, y;
     int TailleImage;
 
@@ -73,9 +73,9 @@ int main(int argc, char *argv[]) {
 
     boolean inverse = false;
 
-    char *Chemin;
+    char* Chemin;
 
-    initClock; //
+    initTimer; //
 
     /*========================================================================*/
     /* Recuperation des parametres                                                */
@@ -130,15 +130,11 @@ int main(int argc, char *argv[]) {
 
     TailleImage = X * Y;
 
-    CALLOC(image, Y+1, int*); //TailleImage, int);
-    CALLOC(resultat, Y+1, int*); //TailleImage, int);
-    for (i = 0;i < Y;i++) {
-        CALLOC(image[i], X+1, int);
-        CALLOC(resultat[i], X+1, int);
-        for (j=0; j < X ; j++) {
-            image[i][j] = 0;
-            resultat[i][j] = 0;
-        }
+    CALLOC(image, TailleImage, int);
+    CALLOC(resultat, TailleImage, int);
+    for (i = 0;i < TailleImage;i++) {
+        image[i] = 0;
+        resultat[i] = 0;
     }
 
     x = 0;
@@ -152,7 +148,7 @@ int main(int argc, char *argv[]) {
 
     while (!feof(Src)) {
         n = fscanf(Src, "%d", &P);
-        image[y][x] = P;
+        image[y + x] = P;
         LE_MIN = MIN(LE_MIN, P);
         LE_MAX = MAX(LE_MAX, P);
         x++;
@@ -182,21 +178,23 @@ int main(int argc, char *argv[]) {
     /* Calcul de chaque nouvelle valeur de pixel                              */
     /*========================================================================*/
 
-    omp_set_num_threads(num_threads);
+    int pixel_per_thread = TailleImage / num_threads + 1;
+    int th_id;
 
+    omp_set_num_threads(num_threads);
     printf("%ld threads !\n", num_threads);
 
-    beginClock;
-    #pragma omp parallel for private(i) shared(resultat, image)
-    for (i = 0 ; i < Y ; i++) {
-        #pragma omp parallel for
-        for (j = 0 ; j<X ; j++ ) {
-            resultat[i][j] = ((image[i][j] - LE_MIN) * ETALEMENT);
+    startTimer;
+#pragma omp parallel private(i, th_id)
+    {
+        th_id = omp_get_thread_num();
+        for (i = th_id * pixel_per_thread; i < (th_id + 1) * pixel_per_thread; i++) {
+            resultat[i] = ((image[i] - LE_MIN) * ETALEMENT);
         }
     }
-    endClock;
+    stopTimer;
 
-    printf("Duration %f", tpsClock);
+    printf("Duration %ld", tpsCalcul);
 
 
     /*========================================================================*/
@@ -204,14 +202,12 @@ int main(int argc, char *argv[]) {
     /*========================================================================*/
 
     n = 0;
-    for (i = 0; i < Y ; i++) {
-        for (j = 0; j < X ; j++) {
-        fprintf(Dst, "%3d ", resultat[i][j]);
+    for (i = 0; i < TailleImage; i++) {
+        fprintf(Dst, "%3d ", resultat[i]);
         n++;
         if (n == NBPOINTSPARLIGNES) {
             n = 0;
             fprintf(Dst, "\n");
-        }
         }
     }
 
