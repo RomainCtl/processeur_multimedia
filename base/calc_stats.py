@@ -104,7 +104,7 @@ class Images(object):
                 while res.__length_hint__() > 0:
                     c_line = next(res)
 
-                    dur = re.match(r"Duration ([0-9]+)", c_line)
+                    dur = re.match(r"Duration: ([0-9]+)ms", c_line)
                     if dur is not None:
                         duration = dur.group(1)
 
